@@ -3,7 +3,8 @@
 This ramdisk should be enough for most Linux distributions, and made for Razer Forge TV. Should work on other devices too!
 I don't take responsibility for any bricked devices.
 
-Linux Installation
+Linux Installation:
+
 0. Take any ARM Linux distribution(I tried Gentoo & Arch Linux ARM);
 1. Take original Android ROM, make sure you have unlocked bootloader(fastboot oem unlock);
 2. Take kernel source code for your device. Recompile it with "CONFIG_DEVTMPFS=y" support and try to run Android with this kernel(see steps 4 repacking your boot.img);
