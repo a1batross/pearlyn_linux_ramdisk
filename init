@@ -1,0 +1,76 @@
+#!/sbin/ash
+
+IPADDRESS="10.152.187.2"
+NETMASK="255.255.255.0"
+DEV="eth0"
+NEW_ROOT_DEV="/dev/mmcblk0p15"
+NEW_ROOT_USR_DEV="/dev/mmcblk0p25"
+NEW_ROOT_INIT="/sbin/init" # NOTE: don't prepend NEW_ROOT_DEV here!
+MMCBLKPARTITIONS="1 25"
+FORCEDROP="1" # force drop to telnet
+
+#=============
+# blink
+#
+# led device blinking function. Valid only for pearlyn
+#=============
+blink()
+{
+	echo 1 > /proc/led_device
+	sleep $1
+	echo 255 > /proc/led_device
+	sleep $1
+}
+
+#===============
+# drop_to_telnet
+#
+# start telnet
+#===============
+drop_to_telnet()
+{
+	# Setup network. Just assign IP address, static anyway, no dhcp
+	/sbin/ifconfig $DEV $IPADDRESS netmask $NETMASK && blink 0.2s
+	
+	# Setup telnet
+	/sbin/telnetd -l /sbin/ash /sbin/ash
+	
+	# Keep init online
+	/sbin/ash
+}
+
+# Create & mount basic directories
+mkdir -p /proc /dev /sys /mnt /tmp /new_root
+mount -t devtmpfs none /dev && blink 0.2
+mount -t proc proc /proc    && blink 0.2
+mount -t sysfs sysfs /sys   && blink 0.2
+
+# For Telnetd
+mkdir -p /dev/pts
+mount -t devpts devpts /dev/pts && blink 0.2
+
+# Create our block devices & mount new root
+for i in `busybox seq $MMCBLKPARTITIONS`
+do
+	mknod /dev/mmcblk0p$i b 179 $i
+done
+mkdir -p /new_root
+mount $NEW_ROOT_DEV /new_root && blink 0.2
+mount $NEW_ROOT_USR_DEV /new_root/usr && blink 0.2
+
+# Create initctl FIFO device, required for OpenRC
+busybox mkfifo /dev/initctl
+busybox chmod 777 /dev/initctl
+
+# So we finally boot up, blink for a second :)
+blink 1s
+
+# NOTE: Should be unmounted, because switch_root does "rm -rf" on everything we set before
+# So unmount special filesytems, as they stored somewhere in kernel memory and should not be erased
+umount /dev/pts
+umount /dev
+umount /proc
+umount /sys
+
+
+exec /sbin/switch_root /new_root $NEW_ROOT "$@"
